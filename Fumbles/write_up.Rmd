@@ -1,0 +1,235 @@
+---
+title: "My Take on Fumble Analysis"
+author: "John Kane"
+date: "01/31/2015"
+output: html_document
+---
+```{r,echo=FALSE}
+# All code and dataset creation here for the markdown document. 
+library(RCurl)
+
+
+```
+
+This past week, in a series of blog posts on Sharp Football Analytics <http://www.sharpfootballanalysis.com/blog/>, an analysis was presented that showed that the New England Patriots suddenly improved in their ability to not fumble the football after 2006. What's more, the author contended that their new and improved lack of fumbles was beyond the realm of pure chance. 
+
+Due to some valid criticism of some of the methodology, many analysts and commentators threw out the analysis as junk. Rather than list each separately, here is a link to 538's roundup : <http://fivethirtyeight.com/datalab/your-guide-to-deflate-gateballghazi-related-statistical-analyses/>. I was left unsatisfied by these responses so I did the analysis for myself. I set out to investigate the author's two main points, which I believe he was correct in saying no one had yet to provide evidence against. These were his points (I'm paraphrasing):
+- From 2000-2006 the New England Patriots were league average when it come to the frequency in which they fumble. Starting in 2007 and then onward, they improved sharply and drastically.
+- Their degree of improvement was so great that it is unlikely they would have improved this drastically by chance alone. 
+
+Data
+====
+Source and Preparation
+----------------------
+I used data that I purchased from Armchairanalysis.com <http://www.armchairanalysis.com/>. I bought the research license which only includes data though the 2013 season, so no data for this most recent season is included. While it would be nice, any trends that were visible from 2007-2014 should also be visible from 2007-2013. 
+
+One mistake I discovered in Sharp's analysis was that he attributed the sharp reduction of fumbles to a rule change that allowed visiting teams to supply their own football for the start of the 2007 season. After more Googling than I thought would be necessary, I found that this rule change went into effect prior to the 2006 season. <http://articles.sun-sentinel.com/2006-11-28/sports/0611270475_1_new-football-new-england-quarterback-competition-committee> Still, I will investigate Sharp's claims as is. Pre-2007 vs. 2007 onward. 
+
+As other's responses have pointed out, due to the "K" balls, the most appropriate data points to analyze would be those plays in which the QB-selected balls were in use. The Armchair Analysis data  makes this information easy to grab, so I'll use only those plays they have labeled "PASS" or "RUSH". I'm also eliminating plays that were incomplete passes as there was no possibility of a fumble on the play. Only regular season data will be used.
+
+Metric
+------
+Another area of disagreement in the blogosphere has been whether to use the metric fumbles per play or plays per fumble. Either way it is the same information. The relative difference between data points is the same. Fumbles per play is necessarily bounded between 0 and 1, whereas plays per fumble is not. I think fumbles per play is easier to understand, but later in the analysis I will need to use fumbles per play to avoid division by zero so for the sake of consistency the whole analysis will be done using fumbles per play.
+
+Code
+----
+Using the data from Armchair Analysis, this is the code that generates the data used for the analysis. The prepared data is available in my github repository <www.github.com/johnckane/mydatasandbox/fumble_analysis>.
+
+Did the Patriots fumbling rates drastically improve in 2007?
+============================================================
+The short answer to this question is yes, they did. After isolating only 'PASS' and 'RUSH' plays in the database I looked at fumbles per play per team by year. 
+```{r,echo=FALSE}
+
+```
+We can see visually that after the 2006 season New England's Plays per Fumble jumped drastically compared to where it had been. Prior to that they held steady either at or near league average. The Patriots led this category twice in the period 2007-2013. You could also argue, were it not for an increase in fumbles during the 2006 season that the downward trend in fumbling rate started way back in 2002.  
+
+And yes, the Kansas City Chiefs had a very remarkable year in 2002. They only fumbled 3 times in 962 rushing or passing plays before coming crashing back down to earth the following season. 
+
+Anyway, back to New England. From 2000-2006 the Patriots averaged just under 2 fumbles per 100 plays and from 2007-2013 they averaged just over one fumble per 100 plays, a decline of 46%. 
+```{r}
+yearly_fumble_rates$post <- ifelse(yearly_fumble_rates$season<=2006,0,1)
+yearly_fumble_rates %>%
+  filter(off=="NE") %>%
+  group_by(post) %>%
+  summarise(total_plays = sum(pfs),
+            total_fumbles = sum(fumbles)) %>%
+  mutate(ppf = total_plays/total_fumbles,
+         fpp = total_fumbles/total_plays)
+```
+So yes, New England fumbled far less frequently from 2007-2013 compared to 2000-2006.
+
+Was their new performance too statistically unlikely to be a coincidence?
+=====================================================================
+
+
+How do players' fumble rates change when playing for Patriots vs. Other Teams?
+==============================================================================
+I identified 12 players who got considerable touches playing for both the Patriots and other teams from 2007-2013. I was then able to compare their fumble rates for both teams. These are displayed below in a bar chart. I annotated each bar with the number of touches each bar represents.
+```{r}
+player_list = c("LeGarrette Blount",
+                "Danny Amendola",
+                "Brandon Lloyd",
+                "Deion Branch",
+                "Brandon Tate",
+                "Danny Woodhead",
+                "Fred Taylor",
+                "BenJarvus Green-Ellis",
+                "Sammy Morris",
+                "Wes Welker",
+                "Ben Watson",
+                "Jabar Gaffney")
+
+players2 <- players %>%
+  select(player,fname,lname) %>%
+  mutate(name = paste(fname," ",lname,sep="")) %>%
+  filter(name %in% player_list)
+
+player_plays <- sqldf('
+               select
+                a.gid,
+                a.pid,
+                a.off,
+                a.type,
+                b.bc as player
+               from
+                core as a,
+                rush as b
+               where
+                a.type = "RUSH"
+               and a.pid = b.pid 
+               union all
+               select
+                a.gid,
+                a.pid,
+                a.off,
+                a.type,
+                c.trg as player
+               from
+                core as a,
+                comp_sacks as b,
+                pass as c
+               where
+                   a.pid = b.pid
+               and a.type = "PASS"
+               and a.pid = c.pid
+               ')
+
+player_plays2 <- sqldf('
+                       select
+                        a.*,
+                        b.name
+                       from
+                        player_plays as a,
+                        players2 as b
+                       where
+                        a.player = b.player')
+
+## Now limit the plays to those occurring after 2007 and later
+player_plays_post07 <- sqldf('
+                             select
+                              a.*,
+                              b.seas as season
+                             from
+                              player_plays2 as a,
+                              games as b
+                             where
+                              a.gid = b.gid
+                             ')
+player_plays_post07 <- sqldf('
+                             select
+                              *
+                             from
+                              player_plays_post07
+                             where
+                              season >= 2007')
+## Now bring in the fumble data
+players_final <- sqldf('
+                       select
+                        a.*,
+                        b.fumble
+                       from
+                        player_plays_post07 as a
+                       left join
+                       (select
+                         pid,
+                         1 as fumble
+                       from
+                        fumbles) as b
+                       on
+                        a.pid = b.pid                      
+                       ')
+players_final$fumble <- ifelse(is.na(players_final$fumble),0,1)
+
+players_final$NE <- ifelse(players_final$off=="NE",1,0)
+players_final2 <- players_final %>%
+  group_by(name,NE,fumble) %>%
+  summarise(total_plays = n())
+  
+cast_player <- dcast(players_final2,name~NE+fumble,value.var="total_plays",fill=0)
+colnames(cast_player) <- c("player",
+                           "non_ne_non_fumble",
+                           "non_ne_fumble",
+                           "ne_non_fumble",
+                           "ne_fumble")
+cast_player <- cast_player %>%
+  mutate(non_ne_fumble_rate = non_ne_fumble/(non_ne_non_fumble+non_ne_fumble),
+         ne_fumble_rate = ne_fumble/(ne_non_fumble + ne_fumble))
+
+melt_player <- melt(cast_player,
+                    id.vars = "player",
+                    measure.vars = c("non_ne_fumble_rate",
+                                     "ne_fumble_rate"))
+melt_player$var_id <- ifelse(melt_player$variable == "non_ne_fumble_rate",
+                             "Other Teams",
+                             "New England")
+
+
+## now get samples sizes for each bar for each player
+sample_sizes <- cast_player %>%
+  mutate(ne_total = ne_non_fumble + ne_fumble,
+         non_ne_total = non_ne_non_fumble + non_ne_fumble)
+melt_sample_sizes <- melt(sample_sizes,
+                          id.vars = "player",
+                          measure.vars = c("ne_total","non_ne_total"))
+melt_sample_sizes$var_id <- ifelse(melt_sample_sizes$variable == "ne_total",
+                                   "New England",
+                                   "Other Teams")
+melt_sample_sizes$label_var <- paste("n = ",melt_sample_sizes$value)
+
+plot6 <- ggplot(data=melt_player,
+                aes(x=var_id,
+                    y=value))
+plot6 +
+  geom_bar(stat="identity") +
+  facet_wrap(~player,ncol = 3) +
+  scale_y_continuous("Fumbles per Play",limits = c(0,0.05)) +
+  geom_text(data=melt_sample_sizes,
+            aes(x=var_id,
+                y=0.04,
+                label = label_var)) +
+  scale_x_discrete("Team") +
+  ggtitle("Players Fumble Rates, Playing for Patriots vs. Other Teams \n 2007-2013")
+```
+
+Looking at these plots with the annotations I think it's only fair to compare several of the 12 players represented. Through a combination of either too few plays in general and too large a discrepency in number of plays between New England and other teams (e.g. Wes Welker) I think it's only safe to judge
+-BenJarvus Green Ellis: 0 fumbles with NE, 5 with other teams, very similar plays
+-Danny Woodhead
+-
+
+On dome teams, playing surfaces and weather-effects
+===================================================
+In an effort to mitigate any advantages teams who play less frequenly in wet weather have in fumbling less, other analyses restricted plays analyzed to either eliminate dome teams, or only games being played outside. The real issue there is not whether or not the game is played outside, but whether the weather conditions would make the ball slick. Luckily, the Armchair Analytics data provides weather conditions for each game. 
+
+There are 6 possible weather conditions that would make the ball slick, they are
+
+When looking at how often games are played in these conditions I found that NE played only x% of their games this way. New England is one of the teams most prone to playing in fumble-favorable weather, but do so so rarely in comparison to good conditions (inside or out) that restricing analysis to games played in these conditions would lower the sample size too much. I'm comfortable not conducting that analysis. 
+
+Conclusion
+==========
+If we go back to Sharp's main points I think it's definitely safe to say that after the 2006 season the Patriots fumble rates improved drastically. 
+
+Caveats
+=======
+There are several factors I could not account for
+-Not all plays end in a tackle necessarily. Sometimes players go out of bounds, or intentionally go down to the ground in an effort to avoid being hit. Currently there is no data to use to analyze fumbled when hit plays.
+
