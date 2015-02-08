@@ -90,6 +90,7 @@ players_final <- sqldf('
                        on
                         a.pid = b.pid                      
                        ')
+write.csv(players_final,"players_final.csv")
 players_final$fumble <- ifelse(is.na(players_final$fumble),0,1)
 
 players_final$NE <- ifelse(players_final$off=="NE",1,0)

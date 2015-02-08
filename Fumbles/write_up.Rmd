@@ -1,235 +1,265 @@
 ---
 title: "My Take on Fumble Analysis"
-author: "John Kane"
-date: "01/31/2015"
 output: html_document
 ---
-```{r,echo=FALSE}
-# All code and dataset creation here for the markdown document. 
-library(RCurl)
 
+At the end of January, in a series of blog posts on Sharp Football Analytics [link] (http://www.sharpfootballanalysis.com/blog/), an analysis was presented that showed that the New England Patriots suddenly improved in their ability to not fumble the football after 2006. What's more, the author contended that their new and improved lack of fumbles was beyond the realm of pure chance. 
 
-```
+Due to some valid criticism of some of the methodology, many analysts and commentators threw out the analysis as junk. Rather than list each separately, here is a link to 538's roundup [link] (http://fivethirtyeight.com/datalab/your-guide-to-deflate-gateballghazi-related-statistical-analyses/). 
 
-This past week, in a series of blog posts on Sharp Football Analytics <http://www.sharpfootballanalysis.com/blog/>, an analysis was presented that showed that the New England Patriots suddenly improved in their ability to not fumble the football after 2006. What's more, the author contended that their new and improved lack of fumbles was beyond the realm of pure chance. 
-
-Due to some valid criticism of some of the methodology, many analysts and commentators threw out the analysis as junk. Rather than list each separately, here is a link to 538's roundup : <http://fivethirtyeight.com/datalab/your-guide-to-deflate-gateballghazi-related-statistical-analyses/>. I was left unsatisfied by these responses so I did the analysis for myself. I set out to investigate the author's two main points, which I believe he was correct in saying no one had yet to provide evidence against. These were his points (I'm paraphrasing):
-- From 2000-2006 the New England Patriots were league average when it come to the frequency in which they fumble. Starting in 2007 and then onward, they improved sharply and drastically.
-- Their degree of improvement was so great that it is unlikely they would have improved this drastically by chance alone. 
+I was left unsatisfied by these responses because so many were overly snarky. Also, in his own response, Sharp contended that neither of his two main points had been rebutted, which I agreed with. So I did the analysis for myself. I set out to investigate the author's two main points (I'm paraphrasing):
+1. From 2000-2006 the New England Patriots were league average when it come to the frequency in which they fumble. Starting in 2007 and then onward, they improved sharply and drastically.
+2.Their degree of improvement was so great that it is unlikely they would have improved this drastically by chance alone. 
 
 Data
 ====
 Source and Preparation
 ----------------------
-I used data that I purchased from Armchairanalysis.com <http://www.armchairanalysis.com/>. I bought the research license which only includes data though the 2013 season, so no data for this most recent season is included. While it would be nice, any trends that were visible from 2007-2014 should also be visible from 2007-2013. 
+I used data that I purchased from Armchairanalysis.com [link] (http://www.armchairanalysis.com/). I bought the research license which only includes data though the 2013 season as of this writing, so no data from this most recent season is included. Any trends that were visible from 2007-2014 should also be visible from 2007-2013. 
 
-One mistake I discovered in Sharp's analysis was that he attributed the sharp reduction of fumbles to a rule change that allowed visiting teams to supply their own football for the start of the 2007 season. After more Googling than I thought would be necessary, I found that this rule change went into effect prior to the 2006 season. <http://articles.sun-sentinel.com/2006-11-28/sports/0611270475_1_new-football-new-england-quarterback-competition-committee> Still, I will investigate Sharp's claims as is. Pre-2007 vs. 2007 onward. 
+One mistake I discovered in Sharp's analysis was that he attributed the drastic reduction of fumbles to a rule change that allowed visiting teams to supply their own footballs starting with the 2007 season. After more Googling than I thought would be necessary, I found that this rule change went into effect prior to the 2006 season [link] (http://articles.sun-sentinel.com/2006-11-28/sports/0611270475_1_new-football-new-england-quarterback-competition-committee>). Still, I will investigate Sharp's claims as is. Pre-2007 vs. 2007 and onward. 
 
-As other's responses have pointed out, due to the "K" balls, the most appropriate data points to analyze would be those plays in which the QB-selected balls were in use. The Armchair Analysis data  makes this information easy to grab, so I'll use only those plays they have labeled "PASS" or "RUSH". I'm also eliminating plays that were incomplete passes as there was no possibility of a fumble on the play. Only regular season data will be used.
+As other's responses have pointed out, due to the "K" balls, the most appropriate data points to analyze would be those plays in which the QB-selected balls were in use. To avoid inflating the available pool of "fumble eligible plays", only plays that were rushing attempts, completed passes or sacks will be analyzed. Additionally, only regular season data will be used. All code used to wrangle the data, perform the analysis and create graphics and be found at my github site [link] (www.github.com/johnckane/my_data_sandbox/Fumbles).
 
 Metric
 ------
-Another area of disagreement in the blogosphere has been whether to use the metric fumbles per play or plays per fumble. Either way it is the same information. The relative difference between data points is the same. Fumbles per play is necessarily bounded between 0 and 1, whereas plays per fumble is not. I think fumbles per play is easier to understand, but later in the analysis I will need to use fumbles per play to avoid division by zero so for the sake of consistency the whole analysis will be done using fumbles per play.
+I will be using fumbles per 100 plays. It is necessarily bounded by 0 and 1 which may come in handy if we want to do any inference on the data.
 
-Code
-----
-Using the data from Armchair Analysis, this is the code that generates the data used for the analysis. The prepared data is available in my github repository <www.github.com/johnckane/mydatasandbox/fumble_analysis>.
+```{r,echo=FALSE}
+library(RCurl)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(grid)
+url <- "https://raw.githubusercontent.com/johnckane/my_data_sandbox/master/Fumbles/yearly_fumble_rates.csv"
+connect <- getURL(url)
+yearly_fumble_rates <- read.csv(textConnection(connect))
+# some quick house-keeping on the dataset
+yearly_fumble_rates <- yearly_fumble_rates[,-c(1,7)]
+```
+The data looks like this:
+```{r,echo=FALSE}
+head(yearly_fumble_rates)
+```
+
 
 Did the Patriots fumbling rates drastically improve in 2007?
 ============================================================
-The short answer to this question is yes, they did. After isolating only 'PASS' and 'RUSH' plays in the database I looked at fumbles per play per team by year. 
+The short answer to this question is yes, they did. Looking at their cumulative fumble rate from 2000-2006 and then from 2007-2013 we see this:
 ```{r,echo=FALSE}
-
-```
-We can see visually that after the 2006 season New England's Plays per Fumble jumped drastically compared to where it had been. Prior to that they held steady either at or near league average. The Patriots led this category twice in the period 2007-2013. You could also argue, were it not for an increase in fumbles during the 2006 season that the downward trend in fumbling rate started way back in 2002.  
-
-And yes, the Kansas City Chiefs had a very remarkable year in 2002. They only fumbled 3 times in 962 rushing or passing plays before coming crashing back down to earth the following season. 
-
-Anyway, back to New England. From 2000-2006 the Patriots averaged just under 2 fumbles per 100 plays and from 2007-2013 they averaged just over one fumble per 100 plays, a decline of 46%. 
-```{r}
-yearly_fumble_rates$post <- ifelse(yearly_fumble_rates$season<=2006,0,1)
+yearly_fumble_rates$post07 <- ifelse(yearly_fumble_rates$season<=2006,0,1)
 yearly_fumble_rates %>%
   filter(off=="NE") %>%
-  group_by(post) %>%
-  summarise(total_plays = sum(pfs),
+  group_by(post07) %>%
+  summarise(total_plays = sum(fep),
             total_fumbles = sum(fumbles)) %>%
-  mutate(ppf = total_plays/total_fumbles,
-         fpp = total_fumbles/total_plays)
+  mutate(fumble_rate_100 = 100*total_fumbles/total_plays)
 ```
-So yes, New England fumbled far less frequently from 2007-2013 compared to 2000-2006.
+That is a decrease of just over 78% from 2000-2006 to 2007-2013. Year by year, we can see their improvement graphically.
+```{r,echo=FALSE}
+non_ne <- filter(yearly_fumble_rates, off != 'NE' )
+ne_only <- filter(yearly_fumble_rates,off == 'NE')
+
+yearly_avg <- yearly_fumble_rates %>%
+  group_by(season) %>%
+  summarise(total_plays = sum(fep),
+            total_fumbles = sum(fumbles),
+            total_fumble_rate_100     = 100*total_fumbles/total_plays) %>%
+  mutate(off = 'AVG')
+
+plot1 <- ggplot(data=non_ne,
+                aes(x=season,y=fumble_rate_100,group=off))
+plot1 + 
+  geom_line(color="Gray") +
+  geom_line(data=ne_only,aes(x=season,y=fumble_rate_100),color='Red') +
+  geom_line(data=yearly_avg,aes(x=season,y=total_fumble_rate_100),color = 'Black') +
+  geom_vline(xintercept=2006,linetype = "dashed") +
+  scale_x_continuous("Season",
+                     breaks=seq(from=2000,to=2013,by=1)) +
+  scale_y_continuous("Fumbles per 100 Plays") +
+  ggtitle("All NFL Teams \n Fumbles per 100 Plays by Season") +
+  annotate("text", x = 2003.3, y = 0.25, label = "Kansas City", color='Gray') +
+  annotate("text", x = 2010, y = 0.4, label = "New England", color = 'Red') +
+  annotate("text", x = 2011, y =  2.5, label = "League Average", color = 'Black')
+
+```
+
+I think there are two things worth noting.
+
+1. From 2000-2006 New England was more or less league average in terms of fumbles per 100 carries. Then starting in 2007, they improved drastically and with the exception of 2013, been well above league average and led the league twice in the statistic.
+2. Were it not for 2006, you could argue that New England's improvment actually started way back in the 2002 season. It could be that 2006 was an anomalous season similar to 2013.
+
+
 
 Was their new performance too statistically unlikely to be a coincidence?
 =====================================================================
+I don't think so. There are multiple angles to take to investigate this question. First, let's consider just how well New England has done in terms of fumbles per play relative to other teams in the league. 
+```{r,echo=FALSE}
+yearly_fumble_rates$post <- ifelse(yearly_fumble_rates$season<=2006,0,1)
+pre_post_2006 <- yearly_fumble_rates %>%
+  group_by(off,post) %>%
+  summarise(total_plays = sum(fep),
+            total_fumbles = sum(fumbles)) %>%
+  mutate(fumble_rate_100 = 100*total_fumbles/total_plays)
 
+reshape_pre_post_2006 <- dcast(pre_post_2006,off~post,value.var="fumble_rate_100")
+colnames(reshape_pre_post_2006) <- c("team","pre","post")
+reshape_pre_post_2006 <- reshape_pre_post_2006 %>%
+  mutate(delta = post - pre)
+
+reshape_pre_post_2006$team2 <- factor(reshape_pre_post_2006$team,
+                                      levels = reshape_pre_post_2006[order(reshape_pre_post_2006$post),
+                                                                     "team"])
+plot2 <- ggplot(data=reshape_pre_post_2006,aes(x=post,y=team2))
+plot2 +
+  geom_point() +
+  scale_x_continuous("Fumbles per 100 Plays") +
+  scale_y_discrete("Team") +
+  geom_vline(xintercept = mean(reshape_pre_post_2006$post)) +
+  ggtitle("Fumbles per 100 Plays \n 2007-2013") +
+  geom_segment(aes(x = 1.93, y = 28, xend = 2.13, yend = 28), 
+               arrow = arrow(length = unit(0.5, "cm"))) +
+  annotate("text",
+           x=1.71,
+           y=28,
+           label = "League Average")
+```
+
+New England has lead the league in this category, and there's considerable distance between them and Atlanta. On the other end of the spectrum sits Arizona. If we assume the distribution is normal (reasonable) this is how likely we are to see these values:
+
+```{r,echo=FALSE}
+reshape_pre_post_2006$post_centered <- reshape_pre_post_2006$post - mean(reshape_pre_post_2006$post)
+reshape_pre_post_2006$post_z <- reshape_pre_post_2006$post_centered/sd(reshape_pre_post_2006$post)
+```
+```{r}
+filter(reshape_pre_post_2006,team2 %in% c('NE', 'ATL','ARI'))
+## NE 
+1/pnorm(-2.370150,0,1)
+## ATL
+1/pnorm(-1.936586,0,1)
+## ARI
+1/(1-pnorm(1.987171))
+```
+
+So here we see that New England's outlier status has been estimated by Sharp as 1 in over 16,000, by the Regressing Deadspin article as 1 in 297, and now here as 1 in 112. That's still remarkable, and the next closest team, in terms of unlikeliness (Arizona) clocks in at 1 in 43.
+
+The question now is, should we attribute New England being more than 2.5 times more unlikely then the next closest outlier to nefarious behavior on their part? I don't think so. For one, despite our assumptions, I don't think that these data points are truly random. If you look at the top and bottom teams in the above plot, we have the top five as NE, ATL, IND, NO, GB; while the bottom five are ARI, WAS, OAK, DET, BUF. A confounding factor with these rankings is the success of each franchise over the time period. Before this, wouldn't you have expected New England to be one of the best in the league at not turning the ball over considering all their success? It may be more surprising that they were league average during the period that they won the first three Super Bowls of the Belichick-Brady era, while winning zero from 2007-2013 when they so dominated this statistic.
+
+A reasonable counterpoint to that argument could be the degree by which they improved. They were league average for seven seasons, then the best team in the league over the next seven. To analyze this point I'll take the angle of how much they improved on a fumbles per 100 play basis.
+
+```{r,echo=FALSE}
+reshape_pre_post_2006$team3 <- factor(reshape_pre_post_2006$team,
+                                      levels = reshape_pre_post_2006[order(reshape_pre_post_2006$delta),
+                                                                     "team"])
+plot3 <- ggplot(data=reshape_pre_post_2006,aes(x=delta,y=team3))
+plot3 +
+  geom_point() +
+  scale_x_continuous("Change in Average Plays per Fumble") +
+  scale_y_discrete("Team") +
+  geom_vline(xintercept = 0, linetype="dashed")  +
+  geom_vline(xintercept = mean(reshape_pre_post_2006$delta)) +
+  ggtitle("Change in Average Fumbles per Play \n 2007-2013 vs. 2000-2006") +
+  geom_segment(aes(x = -0.5, y = 28, xend = -0.35, yend = 28), 
+               arrow = arrow(length = unit(0.5, "cm"))) +
+  annotate("text",
+           x=-0.7,
+           y=28,
+           label = "League Average")
+```
+
+New England improved by nearly 1.06 fumbles per 100 plays, tops in the league. But Atlanta was right behind them at 1.05. I think more interesting is that all but seven teams improved in this category. Lowly Detroit regressed moreso than Detroit when you center the changes around the league average. Detroit fumbled at 0.82 times per 100 plays while New England fumbled 0.75 times below league average. On this metric they suddenly aren't an outlier, just an extreme observation.
+
+```{r}
+reshape_pre_post_2006$delta_centered <- reshape_pre_post_2006$delta - mean(reshape_pre_post_2006$delta)
+filter(reshape_pre_post_2006,team2 %in% c('ATL', 'NE', 'DET'))
+```
+
+As a final angle to this point, I'll look at New England's yearly ranking in the category. This will mitigate any outlier season's New England (as well as other teams) had during the time period. 
+
+```{r,echo=FALSE}
+library(sqldf)
+season_ranks <- yearly_fumble_rates %>%
+  group_by(season) %>%
+  mutate(fumble_rank = rank(fumble_rate_100,ties.method="min"))
+## Let's summarise average ranks, first by 2000-2006, then from 2007-2013
+## The rule change went into effect for the 2006 season, though the marked
+## difference was really for the 2007 season onward
+fumble_rank_00_06 <- filter(season_ranks,season <= 2006) %>%
+  group_by(off) %>%
+  summarise(avg_rank1   = mean(fumble_rank),
+            med_rank1   = median(fumble_rank))
+fumble_rank_07_13 <- filter(season_ranks,season >= 2007) %>%
+  group_by(off) %>%
+  summarise(avg_rank2   = mean(fumble_rank),
+            med_rank2   = median(fumble_rank))
+fumble_ranks_compare <- sqldf('
+                              select
+                                a.*,
+                                b.avg_rank2,
+                                b.med_rank2,
+                                b.avg_rank2 - a.avg_rank1 as avg_rank_change,
+                                b.med_rank2 - a.med_rank1 as med_rank_change
+                              from
+                                fumble_rank_00_06 as a,
+                                fumble_rank_07_13 as b
+                              where
+                                a.off = b.off
+                              order by
+                                avg_rank_change')
+## First look at how NE did after 2006.
+fumble_rank_07_13$off2 <- factor(fumble_rank_07_13$off,
+                                 levels = fumble_rank_07_13[order(fumble_rank_07_13$avg_rank2),1]$off)
+
+
+## Average League Ranking
+plot4 <- ggplot(data=fumble_rank_07_13,aes(x=avg_rank2,y=off2))
+plot4 +
+  geom_point() +
+  scale_x_continuous("Average League Rank") +
+  scale_y_discrete("Team") +
+  ggtitle("Average League Rank in Plays per Fumble \n 2007-2013")
+
+```
+
+New England is near the top, but Atlanta, on average has ranked higher than New England when it comes to fumbles. 
+
+Again, we could look at the angle of improvment during the time period. Here's how each franchise's ranking either improved or regressed from 2000-2006 to 2007-2013.
+
+```{r,echo=FALSE}
+fumble_ranks_compare$off2 <- factor(fumble_ranks_compare$off,
+                                    levels = fumble_ranks_compare[order(fumble_ranks_compare$avg_rank_change),1])
+plot5 <- ggplot(data=fumble_ranks_compare,aes(x=avg_rank_change,y=off2))
+plot5 +
+  geom_point() +
+  scale_x_continuous("Average League Rank Change") +
+  scale_y_discrete("Team") +
+  ggtitle("Average League Rank Change \n 2007-2013 vs 2000-2006")
+```
+
+Here New England is third in the NFL, moving up on average 9.1 spots (tied with Baltimore) while Atlanta moved up 11.4 spots. New England is not an outlier in this case.
+
+On dome teams, playing surfaces and weather-effects
+===================================================
+In an effort to mitigate any advantages teams who play less frequenly in wet weather have in fumbling less, other analyses restricted plays analyzed to either eliminate dome teams, or only games being played outside. The real issue is not whether or not the game is played outside, but whether the weather conditions would make the ball slick. Luckily, the Armchair Analytics data provides weather conditions for each game. 
+
+There are 6 possible weather conditions that would make the ball slick, they are "Flurries","Light Snow","Snow","Light Rain" and "Rain". 
+
+When looking at how often games are played in these conditions I found that NE played only 13 of 112 regular season games in wet conditions from 2007-2013. New England is one of the teams most prone to playing in fumble-favorable weather, but do so so rarely in comparison to good conditions (inside or out) that restricing analysis to games played in these conditions would lower the sample size too much. Especially when you would like to consider how they differ from other teams like Atlanta, who performed similarly to New England in holding onto the football from 2007-2013. Atlanta played 2 of their 112 games in wet conditions, not enough, in my opinion, to draw any meaningful insights to their propensity to fumble in wet conditions.
 
 How do players' fumble rates change when playing for Patriots vs. Other Teams?
 ==============================================================================
-I identified 12 players who got considerable touches playing for both the Patriots and other teams from 2007-2013. I was then able to compare their fumble rates for both teams. These are displayed below in a bar chart. I annotated each bar with the number of touches each bar represents.
+A final analysis I conducted was how New England players fumbled when they played with Patriots vs. other teams when New England's fumble rates were so low. I identified 12 players who got considerable touches playing for both the Patriots and other teams from 2007-2013. I was then able to compare their fumble rates for both teams. These are displayed below in a bar chart. I annotated each bar with the number of touches each bar represents.
 ```{r}
-player_list = c("LeGarrette Blount",
-                "Danny Amendola",
-                "Brandon Lloyd",
-                "Deion Branch",
-                "Brandon Tate",
-                "Danny Woodhead",
-                "Fred Taylor",
-                "BenJarvus Green-Ellis",
-                "Sammy Morris",
-                "Wes Welker",
-                "Ben Watson",
-                "Jabar Gaffney")
 
-players2 <- players %>%
-  select(player,fname,lname) %>%
-  mutate(name = paste(fname," ",lname,sep="")) %>%
-  filter(name %in% player_list)
-
-player_plays <- sqldf('
-               select
-                a.gid,
-                a.pid,
-                a.off,
-                a.type,
-                b.bc as player
-               from
-                core as a,
-                rush as b
-               where
-                a.type = "RUSH"
-               and a.pid = b.pid 
-               union all
-               select
-                a.gid,
-                a.pid,
-                a.off,
-                a.type,
-                c.trg as player
-               from
-                core as a,
-                comp_sacks as b,
-                pass as c
-               where
-                   a.pid = b.pid
-               and a.type = "PASS"
-               and a.pid = c.pid
-               ')
-
-player_plays2 <- sqldf('
-                       select
-                        a.*,
-                        b.name
-                       from
-                        player_plays as a,
-                        players2 as b
-                       where
-                        a.player = b.player')
-
-## Now limit the plays to those occurring after 2007 and later
-player_plays_post07 <- sqldf('
-                             select
-                              a.*,
-                              b.seas as season
-                             from
-                              player_plays2 as a,
-                              games as b
-                             where
-                              a.gid = b.gid
-                             ')
-player_plays_post07 <- sqldf('
-                             select
-                              *
-                             from
-                              player_plays_post07
-                             where
-                              season >= 2007')
-## Now bring in the fumble data
-players_final <- sqldf('
-                       select
-                        a.*,
-                        b.fumble
-                       from
-                        player_plays_post07 as a
-                       left join
-                       (select
-                         pid,
-                         1 as fumble
-                       from
-                        fumbles) as b
-                       on
-                        a.pid = b.pid                      
-                       ')
-players_final$fumble <- ifelse(is.na(players_final$fumble),0,1)
-
-players_final$NE <- ifelse(players_final$off=="NE",1,0)
-players_final2 <- players_final %>%
-  group_by(name,NE,fumble) %>%
-  summarise(total_plays = n())
-  
-cast_player <- dcast(players_final2,name~NE+fumble,value.var="total_plays",fill=0)
-colnames(cast_player) <- c("player",
-                           "non_ne_non_fumble",
-                           "non_ne_fumble",
-                           "ne_non_fumble",
-                           "ne_fumble")
-cast_player <- cast_player %>%
-  mutate(non_ne_fumble_rate = non_ne_fumble/(non_ne_non_fumble+non_ne_fumble),
-         ne_fumble_rate = ne_fumble/(ne_non_fumble + ne_fumble))
-
-melt_player <- melt(cast_player,
-                    id.vars = "player",
-                    measure.vars = c("non_ne_fumble_rate",
-                                     "ne_fumble_rate"))
-melt_player$var_id <- ifelse(melt_player$variable == "non_ne_fumble_rate",
-                             "Other Teams",
-                             "New England")
-
-
-## now get samples sizes for each bar for each player
-sample_sizes <- cast_player %>%
-  mutate(ne_total = ne_non_fumble + ne_fumble,
-         non_ne_total = non_ne_non_fumble + non_ne_fumble)
-melt_sample_sizes <- melt(sample_sizes,
-                          id.vars = "player",
-                          measure.vars = c("ne_total","non_ne_total"))
-melt_sample_sizes$var_id <- ifelse(melt_sample_sizes$variable == "ne_total",
-                                   "New England",
-                                   "Other Teams")
-melt_sample_sizes$label_var <- paste("n = ",melt_sample_sizes$value)
-
-plot6 <- ggplot(data=melt_player,
-                aes(x=var_id,
-                    y=value))
-plot6 +
-  geom_bar(stat="identity") +
-  facet_wrap(~player,ncol = 3) +
-  scale_y_continuous("Fumbles per Play",limits = c(0,0.05)) +
-  geom_text(data=melt_sample_sizes,
-            aes(x=var_id,
-                y=0.04,
-                label = label_var)) +
-  scale_x_discrete("Team") +
-  ggtitle("Players Fumble Rates, Playing for Patriots vs. Other Teams \n 2007-2013")
 ```
+
+
 
 Looking at these plots with the annotations I think it's only fair to compare several of the 12 players represented. Through a combination of either too few plays in general and too large a discrepency in number of plays between New England and other teams (e.g. Wes Welker) I think it's only safe to judge
 -BenJarvus Green Ellis: 0 fumbles with NE, 5 with other teams, very similar plays
 -Danny Woodhead
 -
 
-On dome teams, playing surfaces and weather-effects
-===================================================
-In an effort to mitigate any advantages teams who play less frequenly in wet weather have in fumbling less, other analyses restricted plays analyzed to either eliminate dome teams, or only games being played outside. The real issue there is not whether or not the game is played outside, but whether the weather conditions would make the ball slick. Luckily, the Armchair Analytics data provides weather conditions for each game. 
-
-There are 6 possible weather conditions that would make the ball slick, they are
-
-When looking at how often games are played in these conditions I found that NE played only x% of their games this way. New England is one of the teams most prone to playing in fumble-favorable weather, but do so so rarely in comparison to good conditions (inside or out) that restricing analysis to games played in these conditions would lower the sample size too much. I'm comfortable not conducting that analysis. 
-
 Conclusion
 ==========
 If we go back to Sharp's main points I think it's definitely safe to say that after the 2006 season the Patriots fumble rates improved drastically. 
-
-Caveats
-=======
-There are several factors I could not account for
--Not all plays end in a tackle necessarily. Sometimes players go out of bounds, or intentionally go down to the ground in an effort to avoid being hit. Currently there is no data to use to analyze fumbled when hit plays.
-

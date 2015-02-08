@@ -152,6 +152,8 @@ fumble_summary <- sqldf('
 yearly_fumble_rates <- fumble_summary %>%
   mutate(fumble_rate_100 = 100*fumbles/fep)
 
+write.csv(yearly_fumble_rates,"yearly_fumble_rates.csv")
+
 non_ne <- filter(yearly_fumble_rates, off != 'NE' )
 ne_only <- filter(yearly_fumble_rates,off == 'NE')
 
@@ -178,7 +180,7 @@ plot1 +
   annotate("text", x = 2011, y =  2.5, label = "League Average", color = 'Black')
 
 ## Get NE before and after data
-yearly_fumble_rates$post <- ifelse(yearly_fumble_rates$season<=2006,0,1)
+
 yearly_fumble_rates %>%
   filter(off=="NE") %>%
   group_by(post) %>%

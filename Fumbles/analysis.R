@@ -34,6 +34,7 @@ yearly_fumble_rates %>%
          fumble_rate_100 = 100*total_fumbles/total_plays)
 #################################################################################
 library(reshape2)
+library(grid)
 ## all teams before and after 2006
 yearly_fumble_rates$post <- ifelse(yearly_fumble_rates$season<=2006,0,1)
 pre_post_2006 <- yearly_fumble_rates %>%
@@ -48,10 +49,44 @@ reshape_pre_post_2006 <- reshape_pre_post_2006 %>%
   mutate(delta = post - pre)
 
 reshape_pre_post_2006$team2 <- factor(reshape_pre_post_2006$team,
+                                      levels = reshape_pre_post_2006[order(reshape_pre_post_2006$post),
+                                                                     "team"])
+plot2 <- ggplot(data=reshape_pre_post_2006,aes(x=post,y=team2))
+plot2 +
+  geom_point() +
+  scale_x_continuous("Fumbles per 100 Plays") +
+  scale_y_discrete("Team") +
+  geom_vline(xintercept = mean(reshape_pre_post_2006$post)) +
+  ggtitle("Fumbles per 100 Plays \n 2007-2013") +
+  geom_segment(aes(x = 1.93, y = 28, xend = 2.13, yend = 28), 
+               arrow = arrow(length = unit(0.5, "cm"))) +
+  annotate("text",
+           x=1.71,
+           y=28,
+           label = "League Average")
+
+reshape_pre_post_2006$post_centered <- reshape_pre_post_2006$post - mean(reshape_pre_post_2006$post)
+reshape_pre_post_2006$post_z <- reshape_pre_post_2006$post_centered/sd(reshape_pre_post_2006$post)
+filter(reshape_pre_post_2006,team2 %in% c('NE', 'ATL','ARI'))
+
+## NE chances at being so good
+1/pnorm(-2.370150,0,1)
+## ATL
+1/pnorm(-1.936586,0,1)
+## ARI chances at being so bad
+1/(1-pnorm(1.987171))
+
+qqnorm(y=reshape_pre_post_2006$post)
+## So even if these were normal (questionable, seems to have a high peak). But 
+## these aren't random variables. I think most readers will acknowledge that
+## ball security is a skill, and not purely random. 
+
+
+reshape_pre_post_2006$team3 <- factor(reshape_pre_post_2006$team,
                                       levels = reshape_pre_post_2006[order(reshape_pre_post_2006$delta),
                                                                      "team"])
-plot2 <- ggplot(data=reshape_pre_post_2006,aes(x=delta,y=team2))
-plot2 +
+plot3 <- ggplot(data=reshape_pre_post_2006,aes(x=delta,y=team3))
+plot3 +
   geom_point() +
   scale_x_continuous("Change in Average Plays per Fumble") +
   scale_y_discrete("Team") +
@@ -64,60 +99,16 @@ plot2 +
            x=-0.7,
            y=28,
            label = "League Average")
-
 ## Degree of improvement over the average during that time for ATL, NE and
 ## Detroit
 reshape_pre_post_2006$delta_centered <- reshape_pre_post_2006$delta - mean(reshape_pre_post_2006$delta)
 filter(reshape_pre_post_2006,team2 %in% c('ATL', 'NE', 'DET'))
 
-## As the plot indicates, Detroit worsened up by as many fumbles per 100 plays 
-## than either Atlanta or NE improved
-reshape_pre_post_2006$team3 <- factor(reshape_pre_post_2006$team,
-                                      levels = reshape_pre_post_2006[order(reshape_pre_post_2006$post),
-                                      "team"])
-plot3 <- ggplot(data=reshape_pre_post_2006,aes(x=post,y=team3))
-plot3 +
-  geom_point() +
-  scale_x_continuous("Fumbless per 100 Play") +
-  scale_y_discrete("Team") +
-  geom_vline(xintercept = mean(reshape_pre_post_2006$post)) +
-  ggtitle("Fumbles per 100 Plays 2007-2013") +
-  geom_segment(aes(x = 1.93, y = 28, xend = 2.13, yend = 28), 
-               arrow = arrow(length = unit(0.5, "cm"))) +
-  annotate("text",
-           x=1.71,
-           y=28,
-           label = "League Average")
-## look at NE vs ARI 
-reshape_pre_post_2006$post_centered <- reshape_pre_post_2006$post - mean(reshape_pre_post_2006$post)
-reshape_pre_post_2006$post_z <- reshape_pre_post_2006$post_centered/sd(reshape_pre_post_2006$post)
-filter(reshape_pre_post_2006,team3 %in% c('NE', 'ATL','ARI'))
-qqnorm(y=reshape_pre_post_2006$post)
-## NE chances at being so good
-1/pnorm(-2.370150,0,1)
-## ATL
-1/pnorm(-1.936586,0,1)
-## ARI chances at being so bad
-1/(1-pnorm(1.987171))
-## So even if these were normal (questionable, seems to have a high peak). But 
-## these aren't random variables. I think most readers will acknowledge that
-## ball security is a skill, and not purely random. 
-
 #################################################################################
-## Outlier seasons happen. Just look at Kansas City in 2002. The raw data
-## certainly speaks to NE lapping the competition when it comes to performance
-## in this area. I discussed earlier the impact of outliers here. One way to 
-## attempt to remove this possibility is simply rank each team each season by
-## the plays per fumble metric. 
-## visually, not as compelling but the relative difference is the same when 
-## looking at x vs. 1/x. 
-## I don't believe in throwing out data. 
+library(sqldf)
 season_ranks <- yearly_fumble_rates %>%
   group_by(season) %>%
   mutate(fumble_rank = rank(fumble_rate_100,ties.method="min"))
-
-
-
 ## Let's summarise average ranks, first by 2000-2006, then from 2007-2013
 ## The rule change went into effect for the 2006 season, though the marked
 ## difference was really for the 2007 season onward
@@ -144,8 +135,6 @@ fumble_ranks_compare <- sqldf('
                               order by
                                 avg_rank_change')
 ## First look at how NE did after 2006.
-library(gridExtra)
-
 fumble_rank_07_13$off2 <- factor(fumble_rank_07_13$off,
                                  levels = fumble_rank_07_13[order(fumble_rank_07_13$avg_rank2),1]$off)
 
