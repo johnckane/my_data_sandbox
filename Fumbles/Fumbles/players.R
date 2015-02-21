@@ -129,10 +129,10 @@ melt_sample_sizes$var_id <- ifelse(melt_sample_sizes$variable == "ne_total",
                                    "Other Teams")
 melt_sample_sizes$label_var <- paste("n = ",melt_sample_sizes$value)
 
-plot7 <- ggplot(data=melt_player,
+plot6 <- ggplot(data=melt_player,
                 aes(x=var_id,
                     y=value))
-plot7 +
+plot6 +
   geom_bar(stat="identity") +
   facet_wrap(~player,ncol = 3) +
   scale_y_continuous("Fumbles per 100 Plays",limits = c(0,5)) +

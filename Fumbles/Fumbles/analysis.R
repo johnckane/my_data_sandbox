@@ -1,18 +1,7 @@
-library(dplyr)
-library(ggplot2)
-library(RCurl)
-
-url <- "https://raw.githubusercontent.com/johnckane/my_data_sandbox/master/Fumbles/yearly_fumble_rates.csv"
-connect <- getURL(url)
-yearly_fumble_rates <- read.csv(textConnection(connect))
-# some quick house-keeping on the dataset
-yearly_fumble_rates <- yearly_fumble_rates[,-c(1,7)]
-
-
 non_ne <- filter(yearly_fumble_rates, off != 'NE' )
 ne_only <- filter(yearly_fumble_rates,off == 'NE')
 
-yearly_avg <- yearly_fumble_rates %>%
+yearly_avg <- fumble_summary %>%
   group_by(season) %>%
   summarise(total_plays = sum(fep),
             total_fumbles = sum(fumbles),

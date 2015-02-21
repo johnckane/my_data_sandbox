@@ -190,14 +190,14 @@ cast_data <- sqldf('
                     cast_fep as b
                    where
                     a.team = b.team')
-#write.csv(cast_data,"fumble_rates_by_weather.csv")
+write.csv(cast_data,"fumble_rates_by_weather.csv")
 
 cast_data$team2 <- factor(cast_data$team,
                            levels = cast_data[order(cast_data$wet_rate),
                                                "team"])
 
-plot6 <- ggplot(data=cast_data,aes(x=wet_rate,y=team2))
-plot6 +
+plot7 <- ggplot(data=cast_data,aes(x=wet_rate,y=team2))
+plot7 +
   geom_point() +
   scale_x_continuous("Fumbles per 100 Plays in Wet Weather") +
   scale_y_discrete("Team") +
